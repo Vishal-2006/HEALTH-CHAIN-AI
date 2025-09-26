@@ -1,0 +1,405 @@
+/* --- Global Styles & Variables --- */
+:root {
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --accent-color: #2563eb;
+  --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.dark {
+  --bg-primary: #1A1A2E;
+  --bg-secondary: #1A1A2E;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border-color: #2D2D44;
+  --accent-color: #3b82f6;
+  --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+}
+
+/* --- Base Styles --- */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+/* --- Header Styles --- */
+.app-header {
+  background-color: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.dark .app-header {
+  background-color: rgba(26, 26, 46, 0.9);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+}
+
+.app-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+}
+
+.app-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-nav-brand h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.app-nav-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-nav-user p {
+  margin: 0;
+}
+
+.app-nav-user .font-semibold {
+  color: var(--text-primary);
+}
+
+.app-nav-user .text-xs {
+  color: var(--text-secondary);
+}
+
+.app-main-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  transition: background-color 0.3s ease;
+}
+
+/* --- Login Screen Styles --- */
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e1f0ff 100%);
+  transition: background 0.3s ease;
+}
+
+.dark .login-container {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.login-card {
+  background-color: var(--bg-secondary);
+  width: 100%;
+  max-width: 24rem;
+  text-align: center;
+  padding: 2.5rem;
+  border-radius: 1rem;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.login-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+}
+
+.login-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(90deg, #3182ce 0%, #63b3ed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.025em;
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+  font-size: 0.975rem;
+  line-height: 1.5;
+}
+
+.logo {
+  margin-bottom: 1.5rem;
+}
+
+.logoIcon {
+  color: #3182ce;
+}
+
+.login-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.login-select {
+  width: 100%;
+  padding: 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background-color: var(--bg-primary);
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+}
+
+.dark .login-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23d1d5db' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+}
+
+.login-select:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
+  background-color: var(--bg-secondary);
+}
+
+.login-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, #3182ce 0%, #4299e1 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.login-button:hover {
+  background: linear-gradient(90deg, #2b6cb0 0%, #3182ce 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.login-button:disabled {
+  background: #cbd5e0;
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* --- Dashboard Styles --- */
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dashboard-section {
+  background-color: var(--bg-secondary);
+  box-shadow: var(--card-shadow);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.dashboard-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+}
+
+.permission-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-primary);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.button-primary {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.button-primary:hover {
+  filter: brightness(0.9);
+}
+
+.button-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.button-danger:hover {
+  background-color: #b91c1c;
+}
+
+.button-secondary {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+.dark .button-secondary {
+  background-color: #2D2D44;
+  color: #f9fafb;
+}
+
+.button-secondary:hover {
+  filter: brightness(0.95);
+}
+
+/* --- Health Record Styles --- */
+.health-record {
+  background-color: var(--bg-primary);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: all 0.3s ease;
+}
+
+.health-record-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.health-record-title {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.health-record-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.health-record-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .health-record-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.health-record-item {
+  text-align: center;
+  background-color: var(--bg-primary);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
+}
+
+.health-record-item-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.health-record-item-value {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.health-record-prediction {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #eff6ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 0 0.5rem 0.5rem 0;
+  transition: all 0.3s ease;
+}
+
+.dark .health-record-prediction {
+  background-color: #1e3a8a;
+  border-left: 4px solid #60a5fa;
+}
+
+/* Utility Classes */
+.text-gray-500 {
+  color: var(--text-secondary);
+}
+
+.bg-gray-50 {
+  background-color: var(--bg-primary);
+}
+
+.bg-blue-50 {
+  background-color: #eff6ff;
+}
+
+.dark .bg-blue-50 {
+  background-color: #1e3a8a;
+}
+
+.border-gray-200 {
+  border-color: var(--border-color);
+}
