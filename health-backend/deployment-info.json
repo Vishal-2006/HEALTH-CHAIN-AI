@@ -1,14 +1,7 @@
 {
-  "network": "localhost",
-  "healthRecordAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  "accessControlAddress": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "timestamp": "2025-09-02T05:42:03.583Z",
-  "MedicalReport": {
-    "contractName": "MedicalReport",
-    "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    "network": "localhost",
-    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "timestamp": "2025-09-03T09:24:30.813Z"
-  }
+  "network": "sepolia",
+  "healthRecordAddress": "0x97370fd2238859F99f0c4B7b517E12aA2735cdb3",
+  "accessControlAddress": "0x58C082A7a6Df78670B587E13C1732FD1FeDd05e0",
+  "deployer": "0x1d07F6840D4dA402E13AfEc5A118bB10Fb92FDad",
+  "timestamp": "2025-09-26T05:48:37.116Z"
 }

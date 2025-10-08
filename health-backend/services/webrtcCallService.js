@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const BlockchainService = require('./blockchainService');
-const IPFSService = require('./ipfsService');
+const PinataIPFSService = require('./pinataIPFSService');
 
 class WebRTCCallService {
     constructor() {
@@ -10,7 +10,7 @@ class WebRTCCallService {
         this.realTimeSubscribers = new Map(); // Track real-time subscribers per call
         this.io = null; // Socket.IO instance for real-time updates
         this.blockchainService = new BlockchainService();
-        this.ipfsService = new IPFSService();
+        this.pinataIPFSService = new PinataIPFSService();
         console.log('📞 WebRTC call service initialized with real-time state management and blockchain integration');
     }
 
@@ -394,7 +394,11 @@ class WebRTCCallService {
             // Store call metadata on IPFS
             console.log(`📤 Uploading call metadata to IPFS...`);
             const metadataJson = JSON.stringify(callMetadata, null, 2);
-            const ipfsHash = await this.ipfsService.uploadData(metadataJson);
+            const ipfsResult = await this.pinataIPFSService.uploadData(metadataJson, `call-metadata-${callId}.json`, {
+                callId: callId,
+                type: 'call-metadata'
+            });
+            const ipfsHash = ipfsResult.ipfsHash;
             console.log(`✅ Call metadata uploaded to IPFS: ${ipfsHash}`);
 
             // Create a unique record ID for the call
@@ -651,7 +655,8 @@ class WebRTCCallService {
                         // Try to get the call data from IPFS
                         let callData = null;
                         try {
-                            const ipfsData = await this.ipfsService.getData(record.dataHash);
+                            const ipfsResult = await this.pinataIPFSService.getData(record.dataHash);
+                            const ipfsData = ipfsResult.success ? ipfsResult.data : null;
                             callData = JSON.parse(ipfsData);
                         } catch (ipfsError) {
                             console.warn(`⚠️ Could not retrieve call data from IPFS for record ${record.recordId}`);

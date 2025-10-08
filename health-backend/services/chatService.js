@@ -1,8 +1,8 @@
-const IPFSService = require('./ipfsService');
+const PinataIPFSService = require('./pinataIPFSService');
 
 class ChatService {
     constructor() {
-        this.ipfsService = new IPFSService();
+        this.pinataIPFSService = new PinataIPFSService();
         this.activeChats = new Map(); // Store active chat sessions
         this.messageHistory = new Map(); // Cache for recent messages
     }
@@ -10,8 +10,7 @@ class ChatService {
     // Initialize chat service
     async initialize() {
         try {
-            await this.ipfsService.initialize();
-            console.log('✅ Chat service initialized');
+            console.log('✅ Chat service initialized with Pinata IPFS');
         } catch (error) {
             console.error('❌ Failed to initialize chat service:', error);
         }
@@ -37,10 +36,14 @@ class ChatService {
 
             console.log(`💬 Message data created:`, messageData);
 
-            // Store message on IPFS
-            console.log(`💬 Uploading message to IPFS...`);
-            const ipfsResult = await this.ipfsService.uploadJSON(messageData);
-            console.log(`💬 IPFS upload result:`, ipfsResult);
+            // Store message on Pinata IPFS
+            console.log(`💬 Uploading message to Pinata IPFS...`);
+            const ipfsResult = await this.pinataIPFSService.uploadData(messageData, `chat-message-${Date.now()}.json`, {
+                senderId: senderId,
+                receiverId: receiverId,
+                type: 'chat-message'
+            });
+            console.log(`💬 Pinata IPFS upload result:`, ipfsResult);
             
             // Create chat session key (sorted to ensure consistency)
             const chatKey = this.getChatKey(senderId, receiverId);
@@ -55,7 +58,7 @@ class ChatService {
             const chatMessages = this.messageHistory.get(chatKey);
             chatMessages.push({
                 ...messageData,
-                ipfsHash: ipfsResult.hash,
+                ipfsHash: ipfsResult.ipfsHash,
                 ipfsUrl: ipfsResult.gatewayUrl
             });
             
@@ -67,7 +70,7 @@ class ChatService {
                 success: true,
                 messageId,
                 timestamp,
-                ipfsHash: ipfsResult.hash,
+                ipfsHash: ipfsResult.ipfsHash,
                 ipfsUrl: ipfsResult.gatewayUrl
             };
             

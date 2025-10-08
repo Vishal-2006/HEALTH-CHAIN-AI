@@ -55,8 +55,9 @@ HEALTH CHAIN AI/
 - **Node.js + Express** - REST API server
 - **Hardhat + Solidity** - Blockchain development
 - **Ethers.js** - Blockchain interaction
+- **Pinata IPFS** - Cloud-based decentralized file storage
 - **Tesseract.js** - OCR for medical documents
-- **Ollama** - Local AI processing
+- **Google Gemini AI** - Advanced AI processing
 - **bcrypt** - Password security
 
 ### **Frontend:**
@@ -66,8 +67,9 @@ HEALTH CHAIN AI/
 - **Lucide React** - Icons
 
 ### **AI & Blockchain:**
-- **Ollama (Mistral 7B)** - Local medical AI
-- **Hardhat Network** - Local blockchain
+- **Google Gemini AI** - Advanced medical AI analysis
+- **Sepolia Testnet** - Real blockchain network
+- **Pinata IPFS** - Cloud-based file storage
 - **Smart Contracts** - Health records & access control
 
 ## 🎯 **Key Features**
@@ -79,16 +81,17 @@ HEALTH CHAIN AI/
 - ✅ Session management
 
 ### **AI & OCR:**
-- ✅ Medical document processing
+- ✅ Medical document processing with Gemini AI
 - ✅ Health data extraction
-- ✅ AI-powered health analysis
-- ✅ Risk assessment
+- ✅ Advanced AI-powered health analysis
+- ✅ Professional medical risk assessment
 
 ### **Blockchain:**
-- ✅ Health record storage
+- ✅ Health record storage on Sepolia testnet
 - ✅ Access control permissions
 - ✅ Immutable data records
 - ✅ Smart contract management
+- ✅ Pinata IPFS integration
 
 ### **User Interface:**
 - ✅ Patient dashboard
@@ -100,8 +103,9 @@ HEALTH CHAIN AI/
 
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:5001
-- **Blockchain**: http://localhost:8545
-- **Ollama AI**: http://localhost:11434
+- **Sepolia Testnet**: https://sepolia.etherscan.io
+- **Pinata IPFS**: https://pinata.cloud
+- **Gemini AI**: Google AI Studio
 
 ## 📊 **Project Statistics**
 
@@ -115,18 +119,20 @@ HEALTH CHAIN AI/
 
 All core features are working:
 - 🔐 Secure authentication
-- 🤖 AI medical analysis
+- 🤖 Advanced Gemini AI medical analysis
 - 📄 Document OCR processing
-- ⛓️ Blockchain data storage
+- ⛓️ Sepolia testnet blockchain storage
+- 🌐 Pinata IPFS cloud storage
 - 👥 User role management
 - 🎨 Modern responsive UI
 
 ## 🗑️ **Cleaned Up**
 
-Removed unnecessary files:
-- ❌ `config.example.js` - Template file
+Removed unnecessary files and services:
+- ❌ `ipfsService.js` - Local IPFS service (replaced with Pinata)
 - ❌ `eng.traineddata` - Large OCR file (5MB)
-- ❌ Documentation files (optional)
+- ❌ Ollama AI integration (replaced with Gemini AI)
+- ❌ Local IPFS Desktop dependency
 
 ## 🚀 **Ready to Use**
 

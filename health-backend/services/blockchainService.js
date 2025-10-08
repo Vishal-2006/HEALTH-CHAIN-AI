@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const CryptoJS = require('crypto-js');
-const IPFSService = require('./ipfsService');
+const PinataIPFSService = require('./pinataIPFSService');
+const GeminiAIService = require('./geminiAIService');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -11,7 +12,8 @@ class BlockchainService {
         this.signer = null;
         this.healthRecordContract = null;
         this.accessControlContract = null;
-        this.ipfsService = new IPFSService();
+        this.pinataIPFSService = new PinataIPFSService();
+        this.geminiAIService = new GeminiAIService();
         this.isInitialized = false;
         this.registeredDoctors = new Map(); // Track registered doctors in memory
         this.registeredPatients = new Map(); // Track registered patients in memory
@@ -82,25 +84,35 @@ class BlockchainService {
             this.loadUserHashes();
             
             // Initialize Web3 provider
-            if (process.env.NODE_ENV === 'production') {
+            if (process.env.USE_SEPOLIA_NETWORK === 'true') {
+                // Use Sepolia testnet
+                this.provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC_URL);
+                console.log('🌐 Using Sepolia testnet');
+            } else if (process.env.NODE_ENV === 'production') {
                 // Production: Use actual blockchain network
                 this.provider = new ethers.JsonRpcProvider(process.env.BLOCKCHAIN_RPC_URL);
             } else {
                 // Development: Use local Hardhat network
                 this.provider = new ethers.JsonRpcProvider('http://localhost:8545');
+                console.log('🏠 Using local Hardhat network');
             }
             
             // Initialize signer (wallet)
-            // Use a default private key for Hardhat development
-            console.log('Using Hardhat accounts for development');
             try {
-                // Use the first Hardhat account's private key
-                const hardhatPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-                this.signer = new ethers.Wallet(hardhatPrivateKey, this.provider);
-                console.log('✅ Using Hardhat development account');
+                if (process.env.USE_SEPOLIA_NETWORK === 'true' && process.env.PRIVATE_KEY) {
+                    // Use Sepolia private key - manually set for testing
+                    const privateKey = '0xd4359a0c77f2e2f27df1f9af00fe3076c94c73f43c820fafaa87d173377b190f';
+                    this.signer = new ethers.Wallet(privateKey, this.provider);
+                    console.log('✅ Using Sepolia testnet account with MetaMask key');
+                } else {
+                    // Use the first Hardhat account's private key for development
+                    const hardhatPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+                    this.signer = new ethers.Wallet(hardhatPrivateKey, this.provider);
+                    console.log('✅ Using Hardhat development account');
+                }
             } catch (error) {
                 console.error('Failed to initialize signer:', error);
-                throw new Error('Failed to initialize blockchain signer. Make sure Hardhat network is running.');
+                throw new Error('Failed to initialize blockchain signer. Check your private key and network configuration.');
             }
             
             // Initialize smart contracts
@@ -193,16 +205,33 @@ class BlockchainService {
             let dataHash, metadataHash;
             
             try {
-                const dataResult = await this.ipfsService.uploadData(encryptedData);
-                dataHash = dataResult.cid;
-                
-                const metadataResult = await this.ipfsService.uploadData(metadata);
-                metadataHash = metadataResult.cid;
-                
-                console.log(`✅ Data uploaded to IPFS - Data CID: ${dataHash}, Metadata CID: ${metadataHash}`);
+                // Use Pinata IPFS for all uploads
+                if (this.pinataIPFSService.isReady()) {
+                    const dataResult = await this.pinataIPFSService.uploadData(encryptedData, 'health-data.json', {
+                        patientId: patientId,
+                        doctorId: doctorId,
+                        type: 'health-record'
+                    });
+                    
+                    const metadataResult = await this.pinataIPFSService.uploadData(metadata, 'metadata.json', {
+                        patientId: patientId,
+                        doctorId: doctorId,
+                        type: 'metadata'
+                    });
+                    
+                    if (dataResult.success && metadataResult.success) {
+                        dataHash = dataResult.ipfsHash;
+                        metadataHash = metadataResult.ipfsHash;
+                        console.log(`✅ Data uploaded to Pinata IPFS - Data CID: ${dataHash}, Metadata CID: ${metadataHash}`);
+                    } else {
+                        throw new Error('Pinata upload failed');
+                    }
+                } else {
+                    throw new Error('Pinata IPFS service not available');
+                }
             } catch (ipfsError) {
-                console.log('⚠️ IPFS upload failed, using local hashes as fallback');
-                // Fallback to local hashes if IPFS fails
+                console.log('⚠️ Pinata IPFS upload failed, using local hashes as fallback');
+                // Fallback to local hashes if Pinata fails
                 dataHash = CryptoJS.SHA256(encryptedData).toString();
                 metadataHash = CryptoJS.SHA256(JSON.stringify(metadata)).toString();
             }
@@ -224,8 +253,8 @@ class BlockchainService {
                 dataHash: dataHash,
                 metadataHash: metadataHash,
                 blockNumber: receipt.blockNumber,
-                ipfsDataUrl: this.ipfsService.getGatewayUrl(dataHash),
-                ipfsMetadataUrl: this.ipfsService.getGatewayUrl(metadataHash)
+                ipfsDataUrl: this.pinataIPFSService.getGatewayUrl(dataHash),
+                ipfsMetadataUrl: this.pinataIPFSService.getGatewayUrl(metadataHash)
             };
             
         } catch (error) {
@@ -247,19 +276,23 @@ class BlockchainService {
             let metadata = null;
             
             try {
-                if (record[3] && record[3].startsWith('Qm') || record[3].startsWith('bafy')) {
-                    // This is an IPFS CID, try to retrieve data
-                    const encryptedData = await this.ipfsService.getData(record[3]);
-                    healthData = this.decryptData(encryptedData, process.env.ENCRYPTION_KEY || 'default-key');
+                if (record[3] && (record[3].startsWith('Qm') || record[3].startsWith('bafy'))) {
+                    // This is an IPFS CID, try to retrieve data from Pinata
+                    const dataResult = await this.pinataIPFSService.getData(record[3]);
+                    if (dataResult.success) {
+                        healthData = this.decryptData(dataResult.data, process.env.ENCRYPTION_KEY || 'default-key');
+                    }
                 }
                 
-                if (record[4] && record[4].startsWith('Qm') || record[4].startsWith('bafy')) {
-                    // This is an IPFS CID, try to retrieve metadata
-                    metadata = await this.ipfsService.getData(record[4]);
-                    metadata = JSON.parse(metadata);
+                if (record[4] && (record[4].startsWith('Qm') || record[4].startsWith('bafy'))) {
+                    // This is an IPFS CID, try to retrieve metadata from Pinata
+                    const metadataResult = await this.pinataIPFSService.getData(record[4]);
+                    if (metadataResult.success) {
+                        metadata = JSON.parse(metadataResult.data);
+                    }
                 }
             } catch (ipfsError) {
-                console.log('⚠️ IPFS retrieval failed, data not available');
+                console.log('⚠️ Pinata IPFS retrieval failed, data not available');
             }
             
             return {
@@ -273,8 +306,8 @@ class BlockchainService {
                 isEncrypted: record[7],
                 healthData: healthData,
                 metadata: metadata,
-                ipfsDataUrl: this.ipfsService.getGatewayUrl(record[3]),
-                ipfsMetadataUrl: this.ipfsService.getGatewayUrl(record[4])
+                ipfsDataUrl: this.pinataIPFSService.getGatewayUrl(record[3]),
+                ipfsMetadataUrl: this.pinataIPFSService.getGatewayUrl(record[4])
             };
             
         } catch (error) {
@@ -347,6 +380,10 @@ class BlockchainService {
                 }
             } catch (error) {
                 console.log('⚠️ Could not check patient registration, proceeding anyway:', error.message);
+            }
+            
+            if (!this.healthRecordContract) {
+                throw new Error('Health record contract not initialized');
             }
             
             const tx = await this.healthRecordContract.addMedicalReport(
@@ -668,15 +705,39 @@ class BlockchainService {
     }
 
     // Access Control Methods
-    async grantDoctorAccess(patientId, doctorId) {
+    async grantDoctorAccess(patientId, doctorId, accessLevel = 'read', durationInDays = 30) {
         try {
             if (!this.isInitialized) {
                 throw new Error('Blockchain service not initialized');
             }
             
-            console.log(`✅ Granting access: Patient ${patientId} → Doctor ${doctorId}`);
+            console.log(`✅ Granting access: Patient ${patientId} → Doctor ${doctorId} (${accessLevel}, ${durationInDays} days)`);
             
-            // Use simple file-based permissions for now
+            // First try to grant permission via blockchain contract
+            try {
+                const tx = await this.accessControlContract.grantPermission(
+                    doctorId,
+                    patientId,
+                    accessLevel,
+                    durationInDays
+                );
+                
+                const receipt = await tx.wait();
+                console.log(`✅ Blockchain permission granted: ${receipt.hash}`);
+                
+                return {
+                    transactionHash: receipt.hash,
+                    success: true,
+                    method: 'blockchain',
+                    accessLevel: accessLevel,
+                    durationInDays: durationInDays
+                };
+                
+            } catch (blockchainError) {
+                console.log('⚠️ Blockchain permission grant failed, falling back to file-based permissions:', blockchainError.message);
+            }
+            
+            // Fallback to file-based permissions for development
             const fs = require('fs');
             const path = require('path');
             const permissionsFile = path.join(__dirname, '..', 'test-permissions.json');
@@ -700,7 +761,10 @@ class BlockchainService {
             
             return {
                 transactionHash: 'file-access-granted-' + Date.now(),
-                success: true
+                success: true,
+                method: 'file',
+                accessLevel: accessLevel,
+                durationInDays: durationInDays
             };
             
         } catch (error) {
@@ -717,7 +781,27 @@ class BlockchainService {
             
             console.log(`✅ Revoking access: Patient ${patientId} → Doctor ${doctorId}`);
             
-            // Use the same file-based system as grantDoctorAccess for consistency
+            // First try to revoke permission via blockchain contract
+            try {
+                const tx = await this.accessControlContract.revokePermission(
+                    doctorId,
+                    patientId
+                );
+                
+                const receipt = await tx.wait();
+                console.log(`✅ Blockchain permission revoked: ${receipt.hash}`);
+                
+                return {
+                    transactionHash: receipt.hash,
+                    success: true,
+                    method: 'blockchain'
+                };
+                
+            } catch (blockchainError) {
+                console.log('⚠️ Blockchain permission revoke failed, falling back to file-based permissions:', blockchainError.message);
+            }
+            
+            // Fallback to file-based permissions for development
             const fs = require('fs');
             const path = require('path');
             const permissionsFile = path.join(__dirname, '..', 'test-permissions.json');
@@ -737,7 +821,8 @@ class BlockchainService {
             
             return {
                 transactionHash: 'file-access-revoked-' + Date.now(),
-                success: true
+                success: true,
+                method: 'file'
             };
             
         } catch (error) {
@@ -906,21 +991,53 @@ class BlockchainService {
                 throw new Error('Blockchain service not initialized');
             }
             
-            // Use simple file-based permissions for now
+            // First check blockchain permissions
+            try {
+                const [hasPermission, accessLevel] = await this.accessControlContract.hasPermission(
+                    doctorId,
+                    patientId
+                );
+                
+                if (hasPermission) {
+                    console.log(`✅ Blockchain permission found: Doctor ${doctorId} has ${accessLevel} access to patient ${patientId}`);
+                    return { hasAccess: true, accessLevel: accessLevel };
+                }
+                
+                // Check for emergency access
+                const hasEmergencyAccess = await this.accessControlContract.hasEmergencyAccess(
+                    doctorId,
+                    patientId
+                );
+                
+                if (hasEmergencyAccess) {
+                    console.log(`✅ Emergency access found: Doctor ${doctorId} has emergency access to patient ${patientId}`);
+                    return { hasAccess: true, accessLevel: 'emergency' };
+                }
+                
+            } catch (blockchainError) {
+                console.log('⚠️ Blockchain permission check failed, falling back to file-based permissions:', blockchainError.message);
+            }
+            
+            // Fallback to file-based permissions for development
             const fs = require('fs');
             const path = require('path');
             const permissionsFile = path.join(__dirname, '..', 'test-permissions.json');
             
             if (fs.existsSync(permissionsFile)) {
                 const permissions = JSON.parse(fs.readFileSync(permissionsFile, 'utf8'));
-                return permissions[patientId] && permissions[patientId].includes(doctorId);
+                const hasFileAccess = permissions[patientId] && permissions[patientId].includes(doctorId);
+                if (hasFileAccess) {
+                    console.log(`✅ File-based permission found: Doctor ${doctorId} has access to patient ${patientId}`);
+                    return { hasAccess: true, accessLevel: 'read' };
+                }
             }
             
-            return false;
+            console.log(`❌ No access found: Doctor ${doctorId} does not have access to patient ${patientId}`);
+            return { hasAccess: false, accessLevel: null };
             
         } catch (error) {
             console.error('❌ Failed to check doctor access:', error);
-            return false;
+            return { hasAccess: false, accessLevel: null };
         }
     }
 
@@ -1013,13 +1130,68 @@ class BlockchainService {
         }
     }
     
+    // AI Analysis Methods
+    async analyzeHealthDataWithAI(healthData, analysisType = 'general') {
+        try {
+            if (!this.geminiAIService.isReady()) {
+                throw new Error('Gemini AI service not available');
+            }
+            
+            const analysis = await this.geminiAIService.analyzeMedicalData(healthData, analysisType);
+            
+            if (analysis.success) {
+                console.log(`✅ AI analysis completed: ${analysisType}`);
+                return analysis;
+            } else {
+                throw new Error(analysis.error);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to analyze health data with AI:', error);
+            return {
+                success: false,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
+        }
+    }
+    
+    async generateHealthInsights(patientId, healthData) {
+        try {
+            if (!this.geminiAIService.isReady()) {
+                throw new Error('Gemini AI service not available');
+            }
+            
+            const insights = await this.geminiAIService.generateHealthInsights(healthData);
+            
+            if (insights.success) {
+                console.log(`✅ Health insights generated for patient ${patientId}`);
+                return insights;
+            } else {
+                throw new Error(insights.error);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to generate health insights:', error);
+            return {
+                success: false,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
+        }
+    }
+
     // Utility Methods
     async getBlockchainStatus() {
         return {
             isInitialized: this.isInitialized,
             network: await this.provider?.getNetwork(),
             signerAddress: await this.signer?.getAddress(),
-            blockNumber: await this.provider?.getBlockNumber()
+            blockNumber: await this.provider?.getBlockNumber(),
+            services: {
+                geminiAI: this.geminiAIService.isReady(),
+                pinataIPFS: this.pinataIPFSService.isReady()
+            }
         };
     }
 }

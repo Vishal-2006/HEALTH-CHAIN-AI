@@ -21,14 +21,10 @@ module.exports = {
       chainId: 1337
     },
     sepolia: {
-      url: process.env.SEPOLIA_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 11155111
-    },
-    polygon: {
-      url: process.env.POLYGON_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 137
+      url: "https://eth-sepolia.g.alchemy.com/v2/oFQssLRZ3fxNIkR9gHXGG",
+      accounts: ["d4359a0c77f2e2f27df1f9af00fe3076c94c73f43c820fafaa87d173377b190f"],
+      chainId: 11155111,
+      gasPrice: "auto"
     }
   },
   gasReporter: {

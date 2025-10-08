@@ -1,0 +1,2 @@
+exit
+node check-blockchain-status.js

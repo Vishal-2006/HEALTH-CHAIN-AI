@@ -13,9 +13,9 @@
     "node": "npx hardhat node",
     "compile": "npx hardhat compile",
     "start-all": "node start-all.js",
-            "test-ipfs": "node test-ipfs.js",
-        "test-all-images": "node test-image-upload.js",
-        "make-visible": "node make-files-visible.js"
+    "test-ipfs": "node test-ipfs.js",
+    "test-all-images": "node test-image-upload.js",
+    "make-visible": "node make-files-visible.js"
   },
   "keywords": [
     "healthcare",
@@ -28,6 +28,7 @@
   "author": "HealthChain AI Team",
   "license": "ISC",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@openzeppelin/contracts": "^4.9.3",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",

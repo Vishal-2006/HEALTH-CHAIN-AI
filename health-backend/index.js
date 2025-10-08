@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const bcrypt = require('bcryptjs'); // For hashing passwords
-const axios = require('axios'); // For Ollama API calls
+const axios = require('axios'); // For external API calls
 const BlockchainService = require('./services/blockchainService'); // Blockchain integration
 const DatabaseService = require('./services/databaseService'); // Database service
 const ChatService = require('./services/chatService'); // Chat functionality
@@ -32,20 +32,17 @@ const userCache = new Map(); // Temporary cache for active sessions
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// --- Ollama Configuration ---
-const OLLAMA_CONFIG = {
-  baseURL: 'http://localhost:11434/api',
-  model: 'gemma3:latest',  // Upgraded to Gemma3 for better medical analysis
-  timeout: 30000,
-  enabled: true
-};
-
-// Ollama is now the primary AI for medical analysis
-console.log('🦙 Using Ollama Gemma3 as primary AI for medical analysis');
+// --- AI Configuration ---
+console.log('🤖 Using Gemini AI for medical analysis');
 
 // Initialize blockchain service
 const blockchainService = new BlockchainService();
-console.log('🔗 Blockchain service initialized');
+// Initialize the blockchain service
+blockchainService.initialize().then(() => {
+    console.log('🔗 Blockchain service initialized');
+}).catch((error) => {
+    console.error('❌ Failed to initialize blockchain service:', error);
+});
 
 // Initialize database service
 const databaseService = new DatabaseService();
@@ -74,57 +71,42 @@ console.log('📞 WebRTC call service initialized');
 // No default users - all users must be registered through the registration process
 console.log('✅ No default users - all users must register through the application');
 
-// Test Ollama connection
-const testOllamaConnection = async () => {
+// Test Gemini AI connection
+const testGeminiConnection = async () => {
   try {
-    const response = await axios.get(`${OLLAMA_CONFIG.baseURL}/tags`, { timeout: 5000 });
-    console.log('✅ Ollama connection successful');
-    console.log('Available models:', response.data.models?.map(m => m.name) || 'None');
-    return true;
+    if (blockchainService.geminiAIService && blockchainService.geminiAIService.isReady()) {
+      console.log('✅ Gemini AI connection successful');
+      return true;
+    } else {
+      console.log('⚠️  Gemini AI not available. Check your API key.');
+      return false;
+    }
   } catch (error) {
-    console.log('⚠️  Ollama not available. Using fallback responses.');
-    OLLAMA_CONFIG.enabled = false;
+    console.log('⚠️  Gemini AI connection failed:', error.message);
     return false;
   }
 };
 
-// Initialize Ollama connection
-testOllamaConnection();
+// Initialize Gemini AI connection
+setTimeout(testGeminiConnection, 3000); // Wait for blockchain service to initialize
 
-// --- Ollama AI Functions ---
-const getOllamaPrediction = async (healthData) => {
-  if (!OLLAMA_CONFIG.enabled) {
-    return null;
-  }
-
+// --- Gemini AI Functions ---
+const getGeminiPrediction = async (healthData) => {
   try {
-    const prompt = generateMedicalPrompt(healthData);
-    
-    const response = await axios.post(`${OLLAMA_CONFIG.baseURL}/generate`, {
-      model: OLLAMA_CONFIG.model,
-      prompt: prompt,
-      stream: false,
-      options: {
-        temperature: 0.1,  // Low temperature for consistency
-        top_p: 0.9,
-        max_tokens: 1000
+    if (blockchainService.geminiAIService && blockchainService.geminiAIService.isReady()) {
+      const analysis = await blockchainService.analyzeHealthDataWithAI(healthData, 'general');
+      if (analysis.success) {
+        return analysis.results;
       }
-    }, { timeout: OLLAMA_CONFIG.timeout });
-    
-    const aiResponse = response.data.response;
-    return parseOllamaResponse(aiResponse, healthData);
-    
+    }
+    return null;
   } catch (error) {
-    console.error('Ollama prediction error:', error);
+    console.error('Gemini AI prediction error:', error);
     return null;
   }
 };
 
-const getOllamaOCR = async (fileBuffer, mimeType) => {
-  if (!OLLAMA_CONFIG.enabled) {
-    return null;
-  }
-
+const getGeminiOCR = async (fileBuffer, mimeType) => {
   try {
     // Check if it's a supported image type
     const supportedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff'];
@@ -134,154 +116,34 @@ const getOllamaOCR = async (fileBuffer, mimeType) => {
       return null; // This will trigger fallback response
     }
     
-    // For OCR, we'll use a text-based approach since Ollama doesn't handle images directly
-    // We'll combine with Tesseract.js for image processing
+    // Use Tesseract.js for OCR extraction
     const Tesseract = require('tesseract.js');
     
     const ocrResult = await Tesseract.recognize(fileBuffer, 'eng');
     const extractedText = ocrResult.data.text;
     
-    // Use Ollama to parse the extracted text
-    const prompt = generateOCRPrompt(extractedText);
-    
-    const response = await axios.post(`${OLLAMA_CONFIG.baseURL}/generate`, {
-      model: OLLAMA_CONFIG.model,
-      prompt: prompt,
-      stream: false,
-      options: {
-        temperature: 0.1,
-        max_tokens: 800
+    // Use Gemini AI to parse the extracted text
+    if (blockchainService.geminiAIService && blockchainService.geminiAIService.isReady()) {
+      const healthData = { extractedText: extractedText, source: 'ocr' };
+      const analysis = await blockchainService.analyzeHealthDataWithAI(healthData, 'general');
+      if (analysis.success) {
+        return analysis.results;
       }
-    }, { timeout: OLLAMA_CONFIG.timeout });
+    }
     
-    const aiResponse = response.data.response;
-    return parseOCRResponse(aiResponse);
+    return null;
     
   } catch (error) {
-    console.error('Ollama OCR error:', error);
+    console.error('Gemini OCR error:', error);
     return null;
   }
 };
 
-const generateMedicalPrompt = (healthData) => {
-  return `You are a medical AI assistant. Analyze the following health data and provide a structured response in JSON format.
+// Prompt generation is now handled by Gemini AI service
 
-Health Data:
-- Blood Sugar: ${healthData.bloodSugar || 'N/A'} mg/dL
-- Blood Pressure: ${healthData.bloodPressure || 'N/A'} mmHg
-- Cholesterol: ${healthData.cholesterol || 'N/A'} mg/dL
-- Heart Rate: ${healthData.heartRate || 'N/A'} bpm
-- HDL: ${healthData.hdl || 'N/A'} mg/dL
-- LDL: ${healthData.ldl || 'N/A'} mg/dL
-- Triglycerides: ${healthData.triglycerides || 'N/A'} mg/dL
+// OCR prompt generation is now handled by Gemini AI service
 
-Please provide a JSON response with the following structure:
-{
-  "primaryRisk": {
-    "disease": "specific condition or 'Normal Health Status'",
-    "riskPercentage": number between 5-95,
-    "severity": "low/moderate/high/critical",
-    "confidence": 85
-  },
-  "secondaryRisks": [
-    {
-      "disease": "condition name",
-      "riskPercentage": number,
-      "severity": "low/moderate/high"
-    }
-  ],
-  "recommendations": [
-    "4 specific medical recommendations"
-  ],
-  "medicalNotes": "brief medical analysis",
-  "urgency": "low/moderate/high/critical",
-  "nextSteps": "immediate action items"
-}
-
-Focus on accuracy and medical relevance. If values are normal, indicate "Normal Health Status" as primary disease.`;
-};
-
-const generateOCRPrompt = (extractedText) => {
-  return `You are a medical data extraction expert. Extract ALL medical test results from the following text and return ONLY a JSON object.
-
-Text: "${extractedText}"
-
-EXACT INSTRUCTIONS:
-1. Look for tables with columns like "Test Name", "Result", "Standard Range"
-2. For each test, extract ONLY the "Result" column value (ignore Standard Range)
-3. Look for these specific test names and extract their Result values:
-   - "Blood Sugar (Fasting)" → extract the Result value (e.g., "95")
-   - "Total Cholesterol" → extract the Result value (e.g., "180")
-   - "HDL Cholesterol" → extract the Result value (e.g., "60")
-   - "LDL Cholesterol" → extract the Result value (e.g., "98")
-   - "Triglycerides" → extract the Result value (e.g., "110")
-   - "Blood Pressure" → extract the Result value (e.g., "118/78")
-   - "Heart Rate" → extract the Result value (e.g., "68")
-
-4. Also look for vitals in separate sections like "Vitals Summary"
-
-Return JSON in this EXACT format:
-{
-  "Blood Sugar": {"value": "95", "unit": "mg/dL"},
-  "Blood Pressure": {"value": "118/78", "unit": "mmHg"},
-  "Total Cholesterol": {"value": "180", "unit": "mg/dL"},
-  "HDL": {"value": "60", "unit": "mg/dL"},
-  "LDL": {"value": "98", "unit": "mg/dL"},
-  "Triglycerides": {"value": "110", "unit": "mg/dL"},
-  "Heart Rate": {"value": "68", "unit": "bpm"}
-}
-
-CRITICAL: Extract the ACTUAL NUMERICAL VALUES from the Result column, not the ranges. If you see "95" in the Result column for Blood Sugar, use "95", not "70-99".`;
-};
-
-const parseOllamaResponse = (aiResponse, healthData) => {
-  try {
-    // Extract JSON from response
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('No JSON found in Ollama response');
-    }
-    
-    const parsed = JSON.parse(jsonMatch[0]);
-    
-    // Validate and sanitize response
-    return {
-      primaryRisk: {
-        disease: parsed.primaryRisk?.disease || "Normal Health Status",
-        riskPercentage: Math.max(5, Math.min(95, parsed.primaryRisk?.riskPercentage || 15)),
-        severity: parsed.primaryRisk?.severity || "low",
-        confidence: 85
-      },
-      secondaryRisks: parsed.secondaryRisks || [],
-      recommendations: parsed.recommendations || [
-        "Continue regular health monitoring",
-        "Maintain healthy lifestyle habits",
-        "Schedule annual check-up with healthcare provider",
-        "Consider preventive health screenings"
-      ],
-      medicalNotes: parsed.medicalNotes || "Health assessment completed.",
-      urgency: parsed.urgency || "low",
-      nextSteps: parsed.nextSteps || "Schedule follow-up with healthcare provider"
-    };
-    
-  } catch (error) {
-    console.error('Failed to parse Ollama response:', error);
-    return null;
-  }
-};
-
-const parseOCRResponse = (aiResponse) => {
-  try {
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to parse Ollama OCR response:', error);
-    return null;
-  }
-};
+// Response parsing is now handled by Gemini AI service
 
 // Helper function for image processing (kept for compatibility)
 function fileToGenerativePart(buffer, mimeType) {
@@ -805,28 +667,21 @@ app.get('/api/doctor-accessible-patients/:doctorId', async (req, res) => {
 // IPFS Status Endpoint
 app.get('/api/ipfs/status', async (req, res) => {
     try {
-        const IPFSService = require('./services/ipfsService');
-        const ipfsService = new IPFSService();
-        const isOnline = await ipfsService.isOnline();
-        
-        if (isOnline) {
-            const nodeInfo = await ipfsService.getNodeInfo();
+        const PinataIPFSService = require('./services/pinataIPFSService');
+        const pinataService = new PinataIPFSService();
+        if (pinataService.isReady()) {
             res.json({
                 success: true,
                 online: true,
-                gateway: process.env.IPFS_GATEWAY_URL || 'https://dweb.link',
-                pathGateway: process.env.IPFS_PATH_GATEWAY || 'https://ipfs.io',
-                apiUrl: process.env.IPFS_API_URL || 'http://127.0.0.1:5002',
-                nodeId: nodeInfo?.id || 'Unknown',
-                version: nodeInfo?.agentVersion || 'Unknown',
-                addresses: nodeInfo?.addresses || []
+                service: 'Pinata IPFS',
+                gateway: 'https://gateway.pinata.cloud',
+                apiUrl: 'https://api.pinata.cloud'
             });
         } else {
             res.json({
                 success: false,
                 online: false,
-                error: 'IPFS node not accessible',
-                apiUrl: process.env.IPFS_API_URL || 'http://127.0.0.1:5002'
+                error: 'Pinata IPFS service not available'
             });
         }
     } catch (error) {
@@ -850,8 +705,8 @@ app.post('/api/ipfs/upload', upload.single('file'), async (req, res) => {
             });
         }
 
-        const IPFSService = require('./services/ipfsService');
-        const ipfsService = new IPFSService();
+        const PinataIPFSService = require('./services/pinataIPFSService');
+        const pinataService = new PinataIPFSService();
         const result = await ipfsService.uploadFile(req.file.buffer, req.file.originalname);
 
         if (result.success) {
@@ -892,8 +747,8 @@ app.post('/api/ipfs/upload-json', async (req, res) => {
             });
         }
 
-        const IPFSService = require('./services/ipfsService');
-        const ipfsService = new IPFSService();
+        const PinataIPFSService = require('./services/pinataIPFSService');
+        const pinataService = new PinataIPFSService();
         const result = await ipfsService.uploadJSON(data);
 
         if (result.success) {
@@ -939,7 +794,7 @@ app.post('/api/ocr-upload', upload.single('report'), async (req, res) => {
         
         // Use the new MedicalReportService for secure processing
         const MedicalReportService = require('./services/medicalReportService');
-        const medicalReportService = new MedicalReportService();
+        const medicalReportService = new MedicalReportService(blockchainService);
         
         const result = await medicalReportService.processMedicalReport(
             req.file.buffer,
@@ -973,7 +828,44 @@ app.post('/api/ocr-upload', upload.single('report'), async (req, res) => {
     }
 });
 
-    // 4. Secure Medical Report Retrieval Endpoint
+    // 4. Doctor Retrieve Medical Report by IPFS Hash
+app.get('/api/doctor/medical-report/:ipfsHash', async (req, res) => {
+    try {
+        const { ipfsHash } = req.params;
+        const doctorId = req.query.doctorId || 'doctor_' + Date.now(); // In production, get from JWT
+        const patientId = req.query.patientId; // Required for access control
+        
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient ID is required' });
+        }
+        
+        console.log('🔍 Doctor retrieving medical report...');
+        console.log('👨‍⚕️ Doctor ID:', doctorId);
+        console.log('👤 Patient ID:', patientId);
+        console.log('📁 IPFS Hash:', ipfsHash);
+        
+        const MedicalReportService = require('./services/medicalReportService');
+        const medicalReportService = new MedicalReportService(blockchainService);
+        
+        // Retrieve and analyze the report
+        const result = await medicalReportService.getMedicalReportForDoctor(ipfsHash, doctorId, patientId);
+        
+        res.json({
+            success: true,
+            message: 'Medical report retrieved and analyzed successfully',
+            data: result
+        });
+        
+    } catch (error) {
+        console.error('❌ Failed to retrieve medical report for doctor:', error);
+        res.status(500).json({ 
+            error: 'Failed to retrieve medical report',
+            details: error.message
+        });
+    }
+});
+
+    // 5. Secure Medical Report Retrieval Endpoint (Legacy)
 app.get('/api/medical-report/:reportId', async (req, res) => {
     try {
         const { reportId } = req.params;
@@ -982,7 +874,7 @@ app.get('/api/medical-report/:reportId', async (req, res) => {
         console.log('🔍 Retrieving medical report:', reportId, 'for doctor:', doctorId);
         
         const MedicalReportService = require('./services/medicalReportService');
-        const medicalReportService = new MedicalReportService();
+        const medicalReportService = new MedicalReportService(blockchainService);
         
         const report = await medicalReportService.getMedicalReport(reportId, doctorId);
         
@@ -1012,15 +904,13 @@ app.post('/api/ai-prediction', async (req, res) => {
     }
 
     try {
-        // Process with Ollama AI
-        if (OLLAMA_CONFIG.enabled) {
-            console.log('Processing with Ollama AI...');
-            const ollamaPrediction = await getOllamaPrediction(healthData);
-            if (ollamaPrediction) {
-                console.log('Ollama Prediction Generated:', ollamaPrediction);
-                console.log('=== END AI PREDICTION REQUEST ===');
-                return res.json({ prediction: ollamaPrediction });
-            }
+        // Process with Gemini AI
+        console.log('Processing with Gemini AI...');
+        const geminiPrediction = await getGeminiPrediction(healthData);
+        if (geminiPrediction) {
+            console.log('Gemini Prediction Generated:', geminiPrediction);
+            console.log('=== END AI PREDICTION REQUEST ===');
+            return res.json({ prediction: geminiPrediction });
         }
         
         // Use deterministic fallback for consistent results
